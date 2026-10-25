@@ -1,0 +1,41 @@
+pipeline {
+ agent any
+ environment {
+ IMAGE_NAME = 'simple-cicd-app'
+ CONTAINER_NAME = 'simple-cicd-app'
+ HOST_PORT = '8080'
+ CONTAINER_PORT = '80'
+ }
+ stages {
+ stage('Checkout') {
+ steps { checkout scm }
+ }
+ stage('Build') {
+ steps {
+ sh 'docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .'
+ }
+ }
+ stage('Test') {
+ steps {
+ sh 'docker image inspect ${IMAGE_NAME}:${BUILD_NUMBER} > /dev/null'
+ sh 'test -f index.html'
+ }
+ }
+ stage('Deploy') {
+ steps {
+ sh '''
+ docker rm -f ${CONTAINER_NAME} || true
+ docker run -d --name ${CONTAINER_NAME} \\
+ -p ${HOST_PORT}:${CONTAINER_PORT} \\
+ --restart unless-stopped \\
+ ${IMAGE_NAME}:${BUILD_NUMBER}
+ '''
+ }
+ }
+ }
+ post {
+ success { echo 'CI/CD pipeline completed successfully.' }
+ failure { echo 'Pipeline failed. Check the stage logs above.' }
+ always { echo 'Pipeline run finished.' }
+ }
+}
